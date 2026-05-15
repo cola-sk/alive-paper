@@ -1,0 +1,14 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/screenshot",
+      "schedule": "*/30 * * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/screensaver.png",
+      "destination": "/api/screensaver.png"
+    }
+  ]
+}

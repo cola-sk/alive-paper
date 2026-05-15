@@ -12,7 +12,11 @@
 # ================================================================
 
 # ── 配置区 ────────────────────────────────────────────────────────
-SERVER_URL="http://10.255.105.246:3456/screensaver.png"
+# 部署到 Vercel 后，把下面改成 Vercel 固定域名，如：
+#   SERVER_URL="https://kindle-news.vercel.app/screensaver.png"
+# 本地调试时继续用局域网地址：
+#   SERVER_URL="http://10.255.105.246:3456/screensaver.png"
+SERVER_URL="https://YOUR_PROJECT.vercel.app/screensaver.png"
 SAVE_DIR="/mnt/us/screensaver"
 SAVE_FILE="$SAVE_DIR/dashboard.png"
 LOG_FILE="/mnt/us/kindle-screensaver.log"

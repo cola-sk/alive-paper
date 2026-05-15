@@ -2,3 +2,5 @@ node_modules
 .claude
 .env
 .playwright-mcp
+public/screensaver.png
+

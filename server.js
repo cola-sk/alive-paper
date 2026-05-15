@@ -164,7 +164,7 @@ app.get('/screensaver.png', async (req, res) => {
 
   if (needRegen) {
     try {
-      await generateScreenshot(PORT);
+      await generateScreenshot();
     } catch (err) {
       console.error('[screensaver.png] 生成失败:', err.message);
       if (!fs.existsSync(OUTPUT_PATH)) {
@@ -185,7 +185,13 @@ app.get('/screensaver.png', async (req, res) => {
 app.post('/screenshot', async (req, res) => {
   try {
     await refreshData();
-    await generateScreenshot(PORT);
+    await generateScreenshot({
+      weather: cache.weather || [],
+      stocks: cache.stocks || [],
+      lastUpdated: cache.lastUpdated,
+      notice: cache.notice,
+      error: cache.error,
+    });
     res.json({ ok: true, path: '/screensaver.png' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -207,7 +213,13 @@ app.listen(PORT, async () => {
   // 启动后生成第一张屏保
   if (SCREENSHOT_INTERVAL_MIN > 0) {
     try {
-      await generateScreenshot(PORT);
+      await generateScreenshot({
+        weather: cache.weather || [],
+        stocks: cache.stocks || [],
+        lastUpdated: cache.lastUpdated,
+        notice: cache.notice,
+        error: cache.error,
+      });
     } catch (err) {
       console.warn('[startup] 初始截图失败 (puppeteer 未安装?):', err.message);
     }
@@ -216,7 +228,13 @@ app.listen(PORT, async () => {
     setInterval(async () => {
       try {
         await refreshData();
-        await generateScreenshot(PORT);
+        await generateScreenshot({
+          weather: cache.weather || [],
+          stocks: cache.stocks || [],
+          lastUpdated: cache.lastUpdated,
+          notice: cache.notice,
+          error: cache.error,
+        });
       } catch (err) {
         console.error('[cron] 截图失败:', err.message);
       }
