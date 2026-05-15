@@ -1,0 +1,19 @@
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="utf-8" />
+    <script>
+        // Trigger ssh_enable.sh via com.lab126.transfer source_command exploit
+        // Same mechanism as WinterBreak's jb.sh execution
+        nativeBridge.accessHasharrayProperty("com.lab126.transfer", "request_upload", {
+            url: "http://127.0.0.1",
+            source_command: "sh /mnt/us/ssh_enable.sh",
+            unique_id: "kindledash-ssh-enabler",
+            netid: 1,
+            priority: 50,
+            notify_progress_interval: 20,
+            notify_pub: "com.lab126.archive",
+            notify_prop: "transferProgressNotification",
+        });
+    </script>
+</head>
+</html>

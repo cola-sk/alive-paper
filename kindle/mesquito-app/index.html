@@ -1,0 +1,57 @@
+<!DOCTYPE HTML>
+
+<!-- SSH Enabler Mesquito App -->
+
+<html>
+<head>
+  <meta name="viewport" content="user-scalable=no"/>
+  <script src="file:///mnt/us/mesquito/polyfill.min.js"></script>
+  <script src="file:///mnt/us/mesquito/sdk.js"></script>
+
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #fff; }
+    h1 { font-size: 24px; }
+    #log { width: 100%; height: 200px; font-size: 12px; margin-top: 10px; }
+    .status { font-size: 16px; margin: 10px 0; }
+  </style>
+
+  <title>SSH Enabler</title>
+
+  <script>
+    var kindle = window.kindle || top.kindle;
+  </script>
+</head>
+<body>
+  <h1>SSH Enabler</h1>
+  <p>Enables WiFi SSH on port 22</p>
+  <p class="status" id="status">Starting...</p>
+  <textarea rows=12 id="log"></textarea>
+
+  <script>
+    function log(msg) {
+      document.getElementById("log").innerHTML += "\n" + msg.toString();
+      document.getElementById("log").scrollTop = document.getElementById("log").scrollHeight;
+    }
+
+    function setStatus(msg) {
+      document.getElementById("status").innerHTML = msg;
+    }
+
+    log("SSH Enabler v1.0");
+    log("Installing dropbear SSH daemon...");
+    log("This may take 30-60 seconds.");
+    setStatus("Running ssh_enable.sh...");
+
+    setTimeout(function run() {
+      // Use same path traversal exploit as WinterBreak
+      // Escapes from Pillow's dialog directory up to root, then to our app
+      kindle.messaging.sendMessage("com.lab126.pillow", "customDialog", {
+        name: "../../../../../../mnt/us/apps/com.kindledash.sshenabler/dialoger",
+        clientParams: { show: true, jsEnabled: false }
+      });
+      log("Command sent. Check /mnt/us/ssh_enable.log for results.");
+      setStatus("Script triggered - check ssh_enable.log");
+    }, 2000);
+  </script>
+</body>
+</html>

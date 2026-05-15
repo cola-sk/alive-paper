@@ -12,7 +12,7 @@
 # ================================================================
 
 # ── 配置区 ────────────────────────────────────────────────────────
-SERVER_URL="http://YOUR_SERVER_IP:3000/screensaver.png"
+SERVER_URL="http://10.255.105.246:3456/screensaver.png"
 SAVE_DIR="/mnt/us/screensaver"
 SAVE_FILE="$SAVE_DIR/dashboard.png"
 LOG_FILE="/mnt/us/kindle-screensaver.log"
@@ -44,18 +44,21 @@ else
   exit 1
 fi
 
-# ── 替换 Kindle 屏保并刷新 ────────────────────────────────────────
-# Kindle 8代 (G000, 2016) 屏保目录
-# 使用 linkss 插件最简单，安装后软链接即可自动轮换
+# ── 替换 Kindle 屏保并立即刷新屏幕 ──────────────────────────────
 KINDLE_SS_DIR="/usr/share/blanket/screensaver"
-LINKSS_DIR="/mnt/us/linkss/screensavers"
+FBINK="/mnt/us/usbnet/bin/fbink"
+MNTROOT="/usr/sbin/mntroot"
 
-# 方法 A（推荐）：linkss 插件 — 把图片放到 linkss 目录即可
-if [ -d "$LINKSS_DIR" ]; then
-  cp "$SAVE_FILE" "$LINKSS_DIR/dashboard.png"
-  log "已更新 linkss 屏保: $LINKSS_DIR/dashboard.png"
-# 方法 B：直接替换系统屏保目录（需 mntroot rw）
-elif [ -d "$KINDLE_SS_DIR" ]; then
-  cp "$SAVE_FILE" "$KINDLE_SS_DIR/dashboard.png"
-  log "已更新系统屏保: $KINDLE_SS_DIR/dashboard.png"
+# 1. 挂载系统分区为可写，替换全部 bg_ss*.png（Kindle 随机选这些）
+$MNTROOT rw 2>/dev/null
+if [ -d "$KINDLE_SS_DIR" ]; then
+  for i in 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19; do
+    cp "$SAVE_FILE" "$KINDLE_SS_DIR/bg_ss${i}.png" 2>/dev/null
+  done
+  log "已替换全部 bg_ss*.png (共20张)"
 fi
+$MNTROOT ro 2>/dev/null
+
+# 2. 通知 blanket 重新选图（不直接操作屏幕）
+pkill -HUP blanket 2>/dev/null || true
+log "完成"

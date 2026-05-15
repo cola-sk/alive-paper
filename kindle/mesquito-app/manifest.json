@@ -1,0 +1,10 @@
+{
+    "minVersion": 1,
+    "version": 1,
+    "waf": true,
+    "id": "com.kindledash.sshenabler",
+    "name": "SSH Enabler",
+    "author": "KindleDash",
+    "description": "Enables WiFi SSH (port 22) via dropbear. Run once to install.",
+    "entrypoint": "index.html"
+}
