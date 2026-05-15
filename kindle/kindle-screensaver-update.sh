@@ -32,7 +32,7 @@ log "开始更新屏保..."
 
 # 下载新截图（最多等 15 秒）
 TMP_FILE="$SAVE_DIR/dashboard_tmp.png"
-if wget -q -T 15 -O "$TMP_FILE" "$SERVER_URL" 2>/dev/null; then
+if wget -q -T 15 --no-check-certificate -O "$TMP_FILE" "$SERVER_URL" 2>/dev/null; then
   # 验证是有效的 PNG（前 4 字节是 PNG 签名）
   if [ -s "$TMP_FILE" ]; then
     mv "$TMP_FILE" "$SAVE_FILE"
