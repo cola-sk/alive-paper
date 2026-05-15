@@ -83,7 +83,9 @@ async function generateScreenshotBuffer(input = {}) {
   try {
     const page = await browser.newPage();
     await page.setViewport({ width: KINDLE_W, height: KINDLE_H, deviceScaleFactor: 1 });
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 15000 });
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    // 等待字体等同步渲染完成
+    await new Promise((r) => setTimeout(r, 500));
 
     const rawPng = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: KINDLE_W, height: KINDLE_H } });
 
@@ -111,10 +113,17 @@ function resolveChromePath() {
     '/usr/bin/chromium-browser',
     '/usr/bin/chromium',
   ];
+  // 加入 puppeteer 自管理的 Chrome（npm install puppeteer 时下载的）
+  try {
+    const p = require('puppeteer');
+    if (typeof p.executablePath === 'function') {
+      candidates.push(p.executablePath());
+    }
+  } catch (_) {}
   for (const p of candidates) {
     if (p && fs.existsSync(p)) return p;
   }
-  return undefined; // 回退到 puppeteer 内置
+  return undefined;
 }
 
 async function getBrowserLaunchOptions() {

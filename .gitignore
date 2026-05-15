@@ -4,3 +4,5 @@ node_modules
 .playwright-mcp
 public/screensaver.png
 
+.vercel
+.env*.local

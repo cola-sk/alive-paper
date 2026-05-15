@@ -29,10 +29,15 @@ async function uploadPng(buffer) {
 async function getPngUrl() {
   if (!isBlobEnabled()) return null;
 
-  const { head } = vercelBlob;
+  // head() 需要完整 URL，用 list() 按前缀查找已上传的 blob
+  const { list } = vercelBlob;
   try {
-    const info = await head(BLOB_PATH);
-    return info.url;
+    const { blobs } = await list({
+      prefix: BLOB_PATH,
+      limit: 1,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+    });
+    return blobs[0]?.url || null;
   } catch (err) {
     return null;
   }

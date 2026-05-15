@@ -20,15 +20,17 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 const fs = require('fs');
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-// 生成截图后异步上传到 Vercel Blob（如配置了 BLOB_READ_WRITE_TOKEN）
+// 生成截图后上传到 Vercel Blob（如配置了 BLOB_READ_WRITE_TOKEN），返回 blob URL
 async function uploadScreenshotToBlob() {
-  if (!isBlobEnabled()) return;
+  if (!isBlobEnabled()) return null;
   try {
     const buf = fs.readFileSync(OUTPUT_PATH);
     const url = await uploadPng(buf);
     if (url) console.log(`[blob] 已上传: ${url.slice(0, 80)}`);
+    return url || null;
   } catch (err) {
     console.warn('[blob] 上传失败:', err.message);
+    return null;
   }
 }
 const REFRESH_INTERVAL = parseInt(process.env.REFRESH_INTERVAL || '900', 10);
@@ -205,8 +207,8 @@ app.post('/screenshot', async (req, res) => {
       notice: cache.notice,
       error: cache.error,
     });
-    uploadScreenshotToBlob(); // fire-and-forget，不阻塞响应
-    res.json({ ok: true, path: '/screensaver.png' });
+    const blobUrl = await uploadScreenshotToBlob(); // 等待上传完成
+    res.json({ ok: true, path: '/screensaver.png', blobUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
