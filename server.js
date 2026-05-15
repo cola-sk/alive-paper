@@ -9,6 +9,7 @@ const { getStocks } = require('./src/services/stocks');
 const { renderKindlePage } = require('./src/template');
 const { renderScreensaverPage } = require('./src/screensaver-template');
 const { generateScreenshot, OUTPUT_PATH } = require('./src/services/screenshot');
+const { isBlobEnabled, uploadPng } = require('./src/services/blob-store');
 
 const app = express();
 app.use(express.json());
@@ -16,7 +17,20 @@ app.use(express.json());
 // 静态目录：public/screensaver.png 供 Kindle 直接下载
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
+const fs = require('fs');
 const PORT = parseInt(process.env.PORT || '3000', 10);
+
+// 生成截图后异步上传到 Vercel Blob（如配置了 BLOB_READ_WRITE_TOKEN）
+async function uploadScreenshotToBlob() {
+  if (!isBlobEnabled()) return;
+  try {
+    const buf = fs.readFileSync(OUTPUT_PATH);
+    const url = await uploadPng(buf);
+    if (url) console.log(`[blob] 已上传: ${url.slice(0, 80)}`);
+  } catch (err) {
+    console.warn('[blob] 上传失败:', err.message);
+  }
+}
 const REFRESH_INTERVAL = parseInt(process.env.REFRESH_INTERVAL || '900', 10);
 const SCREENSHOT_INTERVAL_MIN = parseInt(process.env.SCREENSHOT_INTERVAL_MIN || '30', 10);
 const CACHE_TTL_MS = REFRESH_INTERVAL * 1000;
@@ -157,7 +171,6 @@ app.get('/screensaver-src', async (req, res) => {
  * 若文件不存在则先生成
  */
 app.get('/screensaver.png', async (req, res) => {
-  const fs = require('fs');
   const staleThresholdMs = SCREENSHOT_INTERVAL_MIN * 60 * 1000;
   const needRegen = !fs.existsSync(OUTPUT_PATH) ||
     (Date.now() - fs.statSync(OUTPUT_PATH).mtimeMs) > staleThresholdMs;
@@ -192,6 +205,7 @@ app.post('/screenshot', async (req, res) => {
       notice: cache.notice,
       error: cache.error,
     });
+    uploadScreenshotToBlob(); // fire-and-forget，不阻塞响应
     res.json({ ok: true, path: '/screensaver.png' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -220,6 +234,7 @@ app.listen(PORT, async () => {
         notice: cache.notice,
         error: cache.error,
       });
+      uploadScreenshotToBlob();
     } catch (err) {
       console.warn('[startup] 初始截图失败 (puppeteer 未安装?):', err.message);
     }
@@ -235,6 +250,7 @@ app.listen(PORT, async () => {
           notice: cache.notice,
           error: cache.error,
         });
+        uploadScreenshotToBlob();
       } catch (err) {
         console.error('[cron] 截图失败:', err.message);
       }

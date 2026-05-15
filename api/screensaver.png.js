@@ -1,25 +1,21 @@
 'use strict';
 
-const { generateScreenshotBuffer } = require('../src/services/screenshot');
-const { getPngUrl, uploadPng } = require('../src/services/blob-store');
+// Chromium 不在 Vercel serverless 上运行。
+// 截图由 Mac 本地 server.js 生成，生成后上传到 Vercel Blob；
+// 此函数仅重定向到 Blob CDN URL，不启动浏览器。
+const { getPngUrl } = require('../src/services/blob-store');
 
 module.exports = async (req, res) => {
   try {
-    const latestUrl = await getPngUrl();
-
-    // 优先使用已生成的 Blob 文件，避免每次请求都跑截图。
-    if (latestUrl) {
+    const url = await getPngUrl();
+    if (url) {
       res.setHeader('Cache-Control', 'no-cache');
-      return res.redirect(302, latestUrl);
+      return res.redirect(302, url);
     }
-
-    // 首次没有缓存时按请求即时生成一次。
-    const pngBuffer = await generateScreenshotBuffer();
-    await uploadPng(pngBuffer);
-
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Cache-Control', 'no-cache');
-    return res.status(200).send(pngBuffer);
+    // Mac 尚未上传截图（服务未启动或 Blob token 未配置）
+    return res.status(503).json({
+      error: 'Screenshot not yet available. Start the Mac server to generate one.',
+    });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
