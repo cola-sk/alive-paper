@@ -220,3 +220,27 @@ kindle-news/
 ├── README.md                        # 本文件
 └── JAILBREAK_GUIDE.md               # 越狱 + SSH 完整指南
 ```
+
+
+、
+```
+1. Mac crontab (每30分钟)
+   └─> bash ./push-vercel.sh
+       └─> curl POST http://localhost:3456/screenshot
+           ├─> 刷新天气/股票数据
+           ├─> 用 Puppeteer 生成 600×800 PNG
+           ├─> 用 Sharp 转换为灰度
+           └─> 上传到 Vercel Blob CDN
+
+2. Vercel 端点
+   └─> GET https://alive-paper.tz0618.uk/screensaver.png
+       └─> 302 重定向到 https://2xo7921wjmvljgyo.public.blob.vercel-storage.com/...
+
+3. Kindle crontab (每30分钟)
+   └─> /bin/sh /mnt/us/kindle-screensaver-update.sh
+       ├─> wget 下载最新截图
+       ├─> 挂载系统分区为可写
+       ├─> 替换 /usr/share/blanket/screensaver/bg_ss*.png
+       ├─> 挂载改回只读
+       └─> 通知 blanket 刷新屏
+ ```

@@ -48,12 +48,11 @@ else
   exit 1
 fi
 
-# ── 替换 Kindle 屏保并立即刷新屏幕 ──────────────────────────────
+# ── 替换 Kindle 屏保 ──────────────────────────────────────────────
 KINDLE_SS_DIR="/usr/share/blanket/screensaver"
-FBINK="/mnt/us/usbnet/bin/fbink"
 MNTROOT="/usr/sbin/mntroot"
 
-# 1. 挂载系统分区为可写，替换全部 bg_ss*.png（Kindle 随机选这些）
+# 挂载系统分区为可写，替换全部 bg_ss*.png（Kindle 随机选这些）
 $MNTROOT rw 2>/dev/null
 if [ -d "$KINDLE_SS_DIR" ]; then
   for i in 00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19; do
@@ -63,6 +62,7 @@ if [ -d "$KINDLE_SS_DIR" ]; then
 fi
 $MNTROOT ro 2>/dev/null
 
-# 2. 通知 blanket 重新选图（不直接操作屏幕）
-pkill -HUP blanket 2>/dev/null || true
+# 注意：不发送任何信号给 blanket 进程。
+# 直接操作 blanket 会导致 Kindle 唤醒时白屏。
+# 新图片将在 Kindle 下次自然进入休眠时生效。
 log "完成"
