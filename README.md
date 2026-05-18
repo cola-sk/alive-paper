@@ -389,7 +389,7 @@ kindle-news/
 
 ```
 Mac 层（每 30 分钟）
-  ├─ crontab: push-vercel.sh
+  ├─ crontab: push-vercel.sh (`crontab -l`查看定时任务)
   │   ├─ POST localhost:3456/screenshot
   │   │   ├─ 拉取天气/股票数据
   │   │   ├─ 用 Puppeteer 生成 PNG
