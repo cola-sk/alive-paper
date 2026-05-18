@@ -122,11 +122,118 @@ ssh root@10.255.105.67 'tail -4 /mnt/us/kindle-screensaver.log'
 
 ## 自动更新
 
-Kindle 在开机后会自动每 **30 分钟**更新一次屏保，无需手动操作。
+### 工作原理
 
-触发时机：Kindle 每次启动 → `emergency.sh` → 后台循环（`sleep 1800`）→ 拉取并替换屏保。
+Kindle 每天自动完成一个完整更新周期（无需手动操作）：
+1. **Mac 端** → 每 30 分钟执行一次 `push-vercel.sh` 生成新截图并上传到 CDN
+2. **Kindle 端** → 每 30 分钟检查一次并下载最新截图
 
 **条件：** Mac 服务器必须保持运行（`npm start`）。
+
+### Kindle 定时任务配置
+
+首次设置后会永久生效（即使重启也不会丢失）。
+
+#### 1️⃣ 上传更新脚本
+
+```bash
+# 将屏保更新脚本上传到 Kindle
+cat kindle/kindle-screensaver-update.sh | ssh root@<KINDLE_IP> \
+  'cat > /mnt/us/kindle-screensaver-update.sh && chmod +x /mnt/us/kindle-screensaver-update.sh'
+```
+
+#### 2️⃣ 配置定时任务（30分钟间隔）
+
+```bash
+# SSH 连接到 Kindle
+ssh root@<KINDLE_IP>
+
+# 进入交互式 shell，执行以下命令：
+/usr/sbin/mntroot rw              # 挂载系统分区为可写
+vi /etc/crontab/root              # 编辑 crontab
+
+# 在文件末尾添加一行：
+# */30 * * * * /bin/sh /mnt/us/kindle-screensaver-update.sh >> /mnt/us/kindle-screensaver.log 2>&1
+
+# 保存退出（按 Esc，输入 :wq），然后：
+/usr/sbin/mntroot ro              # 改回只读
+exit                              # 退出 SSH
+```
+
+**完整示例（复制粘贴）：**
+```bash
+ssh root@10.45.122.67 '
+/usr/sbin/mntroot rw
+echo "*/30 * * * * /bin/sh /mnt/us/kindle-screensaver-update.sh >> /mnt/us/kindle-screensaver.log 2>&1" >> /etc/crontab/root
+/usr/sbin/mntroot ro
+echo "Cron 配置完成"
+'
+```
+
+### 查看和管理定时任务
+
+#### 查看已配置的定时任务
+
+```bash
+ssh root@<KINDLE_IP> 'cat /etc/crontab/root | grep kindle'
+```
+
+**输出示例：**
+```
+*/30 * * * * /bin/sh /mnt/us/kindle-screensaver-update.sh >> /mnt/us/kindle-screensaver.log 2>&1
+```
+
+#### 删除定时任务（如需停止自动更新）
+
+```bash
+ssh root@<KINDLE_IP> '
+/usr/sbin/mntroot rw
+sed -i.bak "/kindle-screensaver-update/d" /etc/crontab/root
+/usr/sbin/mntroot ro
+echo "Cron 任务已删除"
+'
+```
+
+### 查看执行日志
+
+#### 实时查看最新 5 条日志
+
+```bash
+ssh root@<KINDLE_IP> 'tail -5 /mnt/us/kindle-screensaver.log'
+```
+
+**成功输出示例：**
+```
+2026-05-18 14:30:05 开始更新屏保...
+2026-05-18 14:30:06 下载成功: 32.1K
+2026-05-18 14:30:06 已替换全部 bg_ss*.png (共20张)
+2026-05-18 14:30:07 完成
+```
+
+#### 查看完整日志
+
+```bash
+ssh root@<KINDLE_IP> 'cat /mnt/us/kindle-screensaver.log'
+```
+
+#### 监控日志（持续查看新增内容）
+
+```bash
+ssh root@<KINDLE_IP> 'tail -f /mnt/us/kindle-screensaver.log'
+# 按 Ctrl+C 退出
+```
+
+#### 清空日志
+
+```bash
+ssh root@<KINDLE_IP> 'echo "" > /mnt/us/kindle-screensaver.log'
+```
+
+#### 检查最后一次执行时间和状态
+
+```bash
+ssh root@<KINDLE_IP> 'stat /mnt/us/screensaver/dashboard.png | grep Modify'
+```
 
 ---
 
@@ -199,9 +306,55 @@ curl -s http://localhost:3456/status
 **Q: 想要立即在屏幕显示（而非等锁屏）**
 屏保在 Kindle 进入睡眠时显示。锁屏操作：按一次电源键，屏幕关闭，再看到仪表盘。
 
+**Q: 定时任务没有工作（屏保没有自动更新）**
+1. 确认定时任务已配置：
+   ```bash
+   ssh root@<KINDLE_IP> 'cat /etc/crontab/root | grep kindle'
+   ```
+   应该看到 `*/30 * * * * /bin/sh /mnt/us/kindle-screensaver-update.sh ...` 一行
+
+2. 查看最近的执行日志是否有错误：
+   ```bash
+   ssh root@<KINDLE_IP> 'tail -10 /mnt/us/kindle-screensaver.log'
+   ```
+
+3. 如果日志显示"下载失败"，检查：
+   - Mac 服务器是否运行：`curl http://localhost:3456/status`
+   - Kindle 能否访问服务器：`ssh root@<KINDLE_IP> 'wget -q https://alive-paper.tz0618.uk/screensaver.png -O /tmp/test.png && echo OK'`
+
+4. 如果定时任务从未执行过，重新配置：
+   ```bash
+   ssh root@<KINDLE_IP> '
+   /usr/sbin/mntroot rw
+   echo "*/30 * * * * /bin/sh /mnt/us/kindle-screensaver-update.sh >> /mnt/us/kindle-screensaver.log 2>&1" >> /etc/crontab/root
+   /usr/sbin/mntroot ro
+   '
+   ```
+
+**Q: 日志文件不存在或执行脚本时出错**
+- 确认脚本存在且有执行权限：
+  ```bash
+  ssh root@<KINDLE_IP> 'ls -l /mnt/us/kindle-screensaver-update.sh'
+  ```
+  
+- 如果不存在或权限不对，重新上传：
+  ```bash
+  cat kindle/kindle-screensaver-update.sh | ssh root@<KINDLE_IP> \
+    'cat > /mnt/us/kindle-screensaver-update.sh && chmod +x /mnt/us/kindle-screensaver-update.sh'
+  ```
+
+**Q: 屏保图片很久没变，但日志显示在下载**
+- 这是正常现象：Kindle 显示屏保的时机受限
+  - 只在 Kindle 进入睡眠状态时显示
+  - 新图片在下次睡眠时才会显示（可能延迟 5-30 分钟）
+
+- 快速验证：按电源键锁屏，然后再按一次唤醒，应该看到新图片
+
 ---
 
 ## 项目结构
+
+### Mac 端（本仓库）
 
 ```
 kindle-news/
@@ -209,38 +362,50 @@ kindle-news/
 ├── src/
 │   ├── screensaver-template.js      # 600×800 HTML 模板
 │   └── services/
-│       ├── screenshot.js            # Puppeteer 截图
+│       ├── screenshot.js            # Puppeteer 截图（已修复 Chrome 优先级）
 │       ├── weather.js               # Open-Meteo 天气
 │       └── stocks.js                # Yahoo Finance 股票
 ├── kindle/
 │   ├── ssh_enable.sh                # Kindle 上一次性 SSH 安装脚本
 │   ├── emergency.sh                 # Kindle 开机自启脚本
-│   └── kindle-screensaver-update.sh # Kindle 屏保更新脚本
+│   └── kindle-screensaver-update.sh # Kindle 屏保更新脚本（核心）
+├── push-vercel.sh                   # Mac 端推送脚本（上传到 CDN）
 ├── .env                             # 本地配置（不入 git）
 ├── README.md                        # 本文件
 └── JAILBREAK_GUIDE.md               # 越狱 + SSH 完整指南
 ```
 
+### Kindle 端（系统文件）
 
-、
+| 路径 | 说明 |
+|------|------|
+| `/mnt/us/kindle-screensaver-update.sh` | **屏保更新脚本**（从本仓库上传） |
+| `/mnt/us/screensaver/dashboard.png` | **最新的屏保 PNG 文件** |
+| `/mnt/us/kindle-screensaver.log` | **更新执行日志** |
+| `/etc/crontab/root` | **定时任务配置**（系统分区，需 mntroot rw） |
+| `/usr/share/blanket/screensaver/` | **Kindle 屏保库** `bg_ss00-19.png` |
+
+### 工作流全景
+
 ```
-1. Mac crontab (每30分钟)
-   └─> bash ./push-vercel.sh
-       └─> curl POST http://localhost:3456/screenshot
-           ├─> 刷新天气/股票数据
-           ├─> 用 Puppeteer 生成 600×800 PNG
-           ├─> 用 Sharp 转换为灰度
-           └─> 上传到 Vercel Blob CDN
+Mac 层（每 30 分钟）
+  ├─ crontab: push-vercel.sh
+  │   ├─ POST localhost:3456/screenshot
+  │   │   ├─ 拉取天气/股票数据
+  │   │   ├─ 用 Puppeteer 生成 PNG
+  │   │   ├─ 用 Sharp 转灰度
+  │   │   └─ 保存到 public/screensaver.png
+  │   └─ 上传到 Vercel Blob CDN
+  │
+  └─ CDN 层
+      └─ GET https://alive-paper.tz0618.uk/screensaver.png
+          └─ 302 重定向到 Blob 存储
 
-2. Vercel 端点
-   └─> GET https://alive-paper.tz0618.uk/screensaver.png
-       └─> 302 重定向到 https://2xo7921wjmvljgyo.public.blob.vercel-storage.com/...
-
-3. Kindle crontab (每30分钟)
-   └─> /bin/sh /mnt/us/kindle-screensaver-update.sh
-       ├─> wget 下载最新截图
-       ├─> 挂载系统分区为可写
-       ├─> 替换 /usr/share/blanket/screensaver/bg_ss*.png
-       ├─> 挂载改回只读
-       └─> 通知 blanket 刷新屏
- ```
+Kindle 层（每 30 分钟）
+  └─ crontab: /bin/sh /mnt/us/kindle-screensaver-update.sh
+      ├─ wget 下载最新截图
+      ├─ mntroot rw（挂载系统分区）
+      ├─ 替换 /usr/share/blanket/screensaver/bg_ss*.png
+      ├─ mntroot ro（改回只读）
+      └─> 日志记录到 /mnt/us/kindle-screensaver.log
+```
