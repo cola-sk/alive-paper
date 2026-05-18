@@ -104,22 +104,24 @@ module.exports = { generateScreenshot, generateScreenshotBuffer, OUTPUT_PATH };
 // ─── 工具函数 ──────────────────────────────────────────────────────
 
 function resolveChromePath() {
-  // 按优先级查找可用的 Chrome/Chromium
+  // 优先使用 puppeteer 自管理的 Chrome for Testing（版本确定、兼容性好）
   const candidates = [
     process.env.CHROME_PATH,
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-    '/Applications/Chromium.app/Contents/MacOS/Chromium',
-    '/usr/bin/google-chrome',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/chromium',
   ];
-  // 加入 puppeteer 自管理的 Chrome（npm install puppeteer 时下载的）
   try {
     const p = require('puppeteer');
     if (typeof p.executablePath === 'function') {
       candidates.push(p.executablePath());
     }
   } catch (_) {}
+  // 系统 Chrome 作为回退（可能与 puppeteer-core 版本不兼容，放在后面）
+  candidates.push(
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+  );
   for (const p of candidates) {
     if (p && fs.existsSync(p)) return p;
   }
@@ -142,7 +144,6 @@ async function getBrowserLaunchOptions() {
 
   return {
     headless: true,
-    // 优先用系统 Chrome，其次用 Puppeteer 自带版本
     executablePath: resolveChromePath(),
     args: [
       '--no-sandbox',
